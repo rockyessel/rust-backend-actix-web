@@ -1,0 +1,25 @@
+Problem: Let say you want an information about a certain package, or library in your preferred language, chances are that other languages might
+	 have the same library or package name, which makes the search very stressful and difficult. That's where (the app name) comes, with this,
+	 if you want to search for a specific package or library you want to use, all you have to do is to filter it, and also get other tabs to switch
+	 from and to easily, with less hustle.
+
+Project formation:	
+	 The project will be broken into 3 section. One is the user, package or library, information about the package or library.
+	 User -	 Now, the user will be able to add library or package, and add information.
+ 	 Package/Library - Will have name, use cases, version, description, code
+	 Information -  Is the association it has with the library or package, blog, articles,
+
+Model User:
+	 Name, username, social_links, email, bio, and comments.
+
+Model Package/Library:
+	 Language, name_of_package_library, version, description, code, user_who_added, user_who_made_changes, comments
+
+Model Information:
+	 Title, link, description, favicon, user_who_added, comments
+	
+
+How to get the data:	
+	 For users, they have to create an account,
+	 For Package/Library data, the users might have to add the package/library
+	 And for the information, will have to add a link related to the package/library
