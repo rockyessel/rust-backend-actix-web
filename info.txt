@@ -10,7 +10,7 @@ Project formation:
 	 Information -  Is the association it has with the library or package, blog, articles,
 
 Model User:
-	 Name, username, social_links, email, bio, and comments.
+	 Name, username, social_links:{github,twitter,linkedin,youtube}, email, bio, and comments:{userId,text}.
 
 Model Package/Library:
 	 Language, name_of_package_library, version, description, code, user_who_added, user_who_made_changes, comments
