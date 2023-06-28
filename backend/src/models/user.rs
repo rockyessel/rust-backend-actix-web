@@ -1,12 +1,29 @@
+use bson::{from_document, to_document, Document};
+use mongodb::bson;
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 
-
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct User {
     pub name: String,
     pub username: String,
     pub email: String,
     pub bio: String,
+    pub password: String,
+}
+
+impl From<User> for Document {
+    fn from(user: User) -> Self {
+        to_document(&user).expect("Failed to convert user to BSON document")
+    }
+}
+
+impl TryFrom<Document> for User {
+    type Error = bson::de::Error;
+
+    fn try_from(doc: Document) -> Result<Self, Self::Error> {
+        from_document(doc)
+    }
 }
 
 // impl User {
