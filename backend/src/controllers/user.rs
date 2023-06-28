@@ -1,24 +1,25 @@
-use actix_web::{web, HttpResponse, Responder};
-use mongodb::{bson::{self, doc, Document}, Client};
-use serde_json::json;
-use futures::stream::StreamExt;
-
 use crate::models::user::User;
 use crate::utils::helpers::hashed_or_verity_pass;
+use actix_web::{web, HttpResponse, Responder};
+use futures::stream::StreamExt;
+use mongodb::{
+    bson::{self, doc, oid::ObjectId, Document},
+    Client, Collection,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+
+#[derive(Serialize, Deserialize)]
+struct ID {
+    // Serializes as a hex string in all formats
+    #[serde(serialize_with = "bson::serde_helpers::serialize_object_id_as_hex_string")]
+    oid: ObjectId,
+}
 
 pub async fn create_user(
-    web::Form(form): web::Form<User>, // Extract the form data from the request
-    mongo_client: web::Data<Client>,  // Access the MongoDB client instance
+    web::Form(form): web::Form<User>,
+    mongo_client: web::Data<Client>,
 ) -> impl Responder {
-    // Create a User instance from the form data
-    let user: User = User {
-        name: form.name.to_string(),
-        username: form.username.to_string(),
-        email: form.email.to_string(),
-        bio: form.bio.to_string(),
-        password: form.password.to_string(),
-    };
-
     // Access the "rustBackendApp" database
     let db = mongo_client.database("rustBackendApp");
     // Access the "users" collection within the database
@@ -50,7 +51,24 @@ pub async fn create_user(
             .json(err_msg);
     }
 
-    let hashed_pass = hashed_or_verity_pass("test123Q@.", &form.username, "create_hash",Some("") );
+    let hashed_pass =
+        hashed_or_verity_pass(&form.password, &form.username, "create_hash", Some(""));
+
+    // Create a User instance from the form data
+
+    let id = ID {
+        oid: ObjectId::new(),
+    };
+
+    let user: User = User {
+        _id: Some(id.oid.to_hex()),
+        name: None,
+        username: form.username.to_string(),
+        email: Some(form.email.expect("failed").to_string()),
+        bio: None,
+        password: hashed_pass.to_string(),
+    };
+
     // Convert the user data to a BSON document
     let user_doc = bson::to_document(&user).expect("Failed to convert user to BSON document");
 
@@ -60,14 +78,21 @@ pub async fn create_user(
         return HttpResponse::InternalServerError().finish();
     }
 
-    let user_json = json!(user).to_string();
+    let user_json = json!({
+        "_id": &user._id,
+        "name": &user.name,
+        "username": &user.username,
+        "email": &user.email,
+        "bio": &user.bio,
+        "password": &hashed_pass,
+    })
+    .to_string();
 
     // Return an HTTP response with the message
     HttpResponse::Ok()
         .content_type("application/json")
         .body(user_json)
 }
-
 
 pub async fn get_all_users(mongo_client: web::Data<Client>) -> impl Responder {
     // Access the "rustBackendApp" database
@@ -92,9 +117,39 @@ pub async fn get_all_users(mongo_client: web::Data<Client>) -> impl Responder {
     HttpResponse::InternalServerError().finish()
 }
 
-// pub async fn user_logout(web::Form(form): web::Form<User>,mongo_client: web::Data<Client>) -> impl Responder {
-    
-    
-    
-//     HttpResponse::InternalServerError().finish()
-// }
+pub async fn user_login(
+    web::Form(form): web::Form<User>,
+    mongo_client: web::Data<Client>,
+) -> impl Responder {
+    // Access the "rustBackendApp" database
+    let db = mongo_client.database("rustBackendApp");
+    // Access the "users" collection within the database
+    let collection: Collection<User> = db.collection::<User>("users");
+
+    let username_exist = collection
+        .find_one(doc! {"username": &form.username}, None)
+        .await
+        .expect("No user exist with the username provided.");
+
+    let user_doc = username_exist.unwrap();
+
+    let verify_pass = hashed_or_verity_pass(
+        &form.password,
+        &form.username,
+        "verify_hash",
+        Some(&user_doc.password.as_ref()),
+    );
+
+    if verify_pass == "verified" {
+        let user_json = json!(user_doc).to_string();
+
+        HttpResponse::Ok()
+            .content_type("application/json")
+            .body(user_json)
+    } else {
+        let user_json = json!({ "msg": &verify_pass }).to_string();
+        HttpResponse::Ok()
+            .content_type("application/json")
+            .body(user_json)
+    }
+}

@@ -1,6 +1,5 @@
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 
-
 use fordev::routes::user::configure_routes;
 use fordev::services::db::connect_to_mongodb;
 
@@ -30,7 +29,6 @@ async fn hello() -> impl Responder {
 async fn main() -> std::io::Result<()> {
     let server_address = "127.0.0.1";
     const PORT: u16 = 8080;
-
     // Connect to MongoDB and obtain the client instance
     let db_connection = connect_to_mongodb()
         .await

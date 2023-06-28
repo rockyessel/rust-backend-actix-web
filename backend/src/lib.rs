@@ -20,3 +20,7 @@ pub mod services {
 pub mod utils {
     pub mod helpers;
 }
+
+pub mod middleware {
+    pub mod authentication;
+}

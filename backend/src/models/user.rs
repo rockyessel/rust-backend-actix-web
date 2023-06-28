@@ -5,11 +5,13 @@ use std::convert::TryFrom;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct User {
-    pub name: String,
+    pub _id: Option<String>,
+    pub name: Option<String>,
     pub username: String,
-    pub email: String,
-    pub bio: String,
+    pub email: Option<String>,
+    pub bio: Option<String>,
     pub password: String,
+    
 }
 
 impl From<User> for Document {

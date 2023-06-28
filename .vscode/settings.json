@@ -4,6 +4,7 @@
     "bson",
     "dbname",
     "fordev",
+    "jsonwebtoken",
     "mydb",
     "myuser",
     "Tjzaho"
