@@ -2,6 +2,7 @@
   "cSpell.words": [
     "actix",
     "bson",
+    "chrono",
     "dbname",
     "fordev",
     "jsonwebtoken",

@@ -1,4 +1,4 @@
-use crate::models::user::User;
+use crate::{models::user::User, utils::helpers::gen_jwt_tok};
 use crate::utils::helpers::hashed_or_verity_pass;
 use actix_web::{web, HttpResponse, Responder};
 use futures::stream::StreamExt;
@@ -16,10 +16,7 @@ struct ID {
     oid: ObjectId,
 }
 
-pub async fn create_user(
-    web::Form(form): web::Form<User>,
-    mongo_client: web::Data<Client>,
-) -> impl Responder {
+pub async fn create_user(web::Form(form): web::Form<User>, mongo_client: web::Data<Client>) -> impl Responder {
     // Access the "rustBackendApp" database
     let db = mongo_client.database("rustBackendApp");
     // Access the "users" collection within the database
@@ -78,13 +75,15 @@ pub async fn create_user(
         return HttpResponse::InternalServerError().finish();
     }
 
+    let tok = gen_jwt_tok(&user.username).unwrap();
+
     let user_json = json!({
         "_id": &user._id,
         "name": &user.name,
         "username": &user.username,
         "email": &user.email,
         "bio": &user.bio,
-        "password": &hashed_pass,
+        "token": tok,
     })
     .to_string();
 
@@ -117,10 +116,7 @@ pub async fn get_all_users(mongo_client: web::Data<Client>) -> impl Responder {
     HttpResponse::InternalServerError().finish()
 }
 
-pub async fn user_login(
-    web::Form(form): web::Form<User>,
-    mongo_client: web::Data<Client>,
-) -> impl Responder {
+pub async fn user_login(web::Form(form): web::Form<User>, mongo_client: web::Data<Client>) -> impl Responder {
     // Access the "rustBackendApp" database
     let db = mongo_client.database("rustBackendApp");
     // Access the "users" collection within the database
@@ -139,9 +135,17 @@ pub async fn user_login(
         "verify_hash",
         Some(&user_doc.password.as_ref()),
     );
-
+ let tok = gen_jwt_tok(&user_doc.username).unwrap();
     if verify_pass == "verified" {
-        let user_json = json!(user_doc).to_string();
+           let user_json = json!({
+        "_id": user_doc._id,
+        "name": user_doc.name,
+        "username": user_doc.username,
+        "email": user_doc.email,
+        "bio": user_doc.bio,
+        "token": tok,
+    })
+    .to_string();
 
         HttpResponse::Ok()
             .content_type("application/json")

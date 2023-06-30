@@ -1,5 +1,5 @@
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
-
+use actix_web::middleware::Logger;
 use fordev::routes::user::configure_routes;
 use fordev::services::db::connect_to_mongodb;
 
@@ -38,6 +38,7 @@ async fn main() -> std::io::Result<()> {
     let server = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(db_connection.clone())) // Share the MongoDB client across routes
+             .wrap(Logger::default())
             .service(hello)
             .configure(configure_routes)
     })

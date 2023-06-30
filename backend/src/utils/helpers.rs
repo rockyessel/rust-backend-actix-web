@@ -1,6 +1,9 @@
 use argon2::{Config, ThreadMode, Variant, Version};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{EncodingKey, Header, encode};
 use reqwest;
 use scraper;
+use serde::{Deserialize, Serialize};
 use std::str;
 
 pub fn get_data_from_html_link() {
@@ -58,7 +61,13 @@ pub fn hashed_or_verity_pass(
         }
         "verify_hash" => match db_hashed_pass {
             Some(db_hashed_pass) => {
-                let verified_hash: bool = argon2::verify_encoded_ext(&db_hashed_pass, &strong_pass, &SECRET,username.as_bytes()).unwrap();
+                let verified_hash: bool = argon2::verify_encoded_ext(
+                    &db_hashed_pass,
+                    &strong_pass,
+                    &SECRET,
+                    username.as_bytes(),
+                )
+                .unwrap();
                 match verified_hash {
                     true => "verified".to_string(),
                     _ => "not verified".to_string(),
@@ -70,3 +79,24 @@ pub fn hashed_or_verity_pass(
     }
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct JWTUserClaims {
+    pub username: String,
+    pub exp: usize,
+}
+
+pub fn gen_jwt_tok(username: &str) -> Result<String, jsonwebtoken::errors::Error> {
+    let current_time = Utc::now();
+    let expiration_time = current_time + Duration::days(7);
+    let user_claim = JWTUserClaims {
+        username: username.to_string(),
+        exp: expiration_time.timestamp() as usize,
+    };
+
+    let secret_key = "your-secret-key".as_bytes();
+    let encoding_key = EncodingKey::from_secret(secret_key);
+    let header = Header::default();
+
+    let tok = encode(&header, &user_claim, &encoding_key);
+    tok
+}
