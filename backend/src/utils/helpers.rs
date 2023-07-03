@@ -1,32 +1,57 @@
 use argon2::{Config, ThreadMode, Variant, Version};
 use chrono::{Duration, Utc};
-use jsonwebtoken::{EncodingKey, Header, encode};
+use jsonwebtoken::{encode, EncodingKey, Header};
 use reqwest;
-use scraper;
+use scraper::{self, Element, Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::str;
 
-pub fn get_data_from_html_link() {
-    let html_response = reqwest::blocking::get(
-        "https://www.imdb.com/search/title/?groups=top_100&sort=user_rating,desc&count=100",
-    )
-    .unwrap()
-    .text()
-    .unwrap();
-
-    let parsed_document = scraper::Html::parse_document(&html_response);
-
-    let get_titles_response = scraper::Selector::parse("h3.lister-item-header>a").unwrap();
-
-    let titles = parsed_document
-        .select(&get_titles_response)
-        .map(|x| x.inner_html());
-
-    titles
-        .zip(1..101)
-        .for_each(|(item, number)| println!("{}. {}", number, item));
+#[derive(Deserialize, Serialize)]
+pub struct JWTUserClaims {
+    pub username: String,
+    pub exp: usize,
 }
 
+// https://pypi.org/project/json2json/
+async fn get_html() -> Result<String, reqwest::Error> {
+    let response = reqwest::get("http://localhost:3000/get-html?url=https://yarnpkg.com/package/aws-amplify").await?;
+    let html_content = response.text().await?;
+    Ok(html_content)
+}
+
+pub async fn gen_data_from_html_link() -> Option<String> {
+    match get_html().await {
+        Ok(content) => {
+            let h2_value = scrape_h2_value(&content);
+            println!("H2 Value: {}", h2_value);
+            Some(h2_value)
+        }
+        Err(error) => {
+            println!("Error: {}", error);
+            None
+        }
+    }
+}
+
+fn scrape_h2_value(content: &str) -> String {
+    let document = Html::parse_fragment(content);
+
+    println!("{:?}", &document);
+
+    let selector = Selector::parse("h1#aws-amplify-package---aws-amplify").unwrap();
+
+    let h1 = document.select(&selector).next();
+
+    let text: String = h1.unwrap().text().collect();
+
+    println!("{:#?}", text);
+
+    if let Some(h2_element) = document.select(&selector).next() {
+        h2_element.text().collect()
+    } else {
+        String::new()
+    }
+}
 pub fn hashed_or_verity_pass(
     password: &str,
     username: &str,
@@ -77,12 +102,6 @@ pub fn hashed_or_verity_pass(
         },
         _ => "Invalid method".to_string(),
     }
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct JWTUserClaims {
-    pub username: String,
-    pub exp: usize,
 }
 
 pub fn gen_jwt_tok(username: &str) -> Result<String, jsonwebtoken::errors::Error> {

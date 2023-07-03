@@ -1,18 +1,26 @@
-use actix_web::{web, HttpResponse, Responder};
-use mongodb::{
-    bson::{self, doc, oid::ObjectId, Document},
-    Client, Collection,
-};
-use crate::{models::package::Package};
+use actix_web::{HttpResponse, Responder};
+use serde_json;
 
-pub async fn get_package() {}
-pub async fn get_packages() {}
-pub async fn add_package(web::Form(form):web::Form<Package>, mongo_client:web::Data<Client>) -> impl Responder {
-        // Access the "rustBackendApp" database
-    let db = mongo_client.database("rustBackendApp");
-    // Access the "users" collection within the database
-    let collection = db.collection::<Document>("users");
+use crate::utils::helpers::gen_data_from_html_link;
 
+pub async fn add_package() -> impl Responder {
+    let title = gen_data_from_html_link().await;
+
+    let value = serde_json::json!({
+        "code": 200,
+        "success": true,
+        "payload": {
+            "features": [
+                "serde",
+                "json"
+            ],
+            "homepage": null,
+            "title": title,
+        }
+    });
+
+    let res = HttpResponse::Ok()
+        .content_type("application/json")
+        .json(value);
+    res
 }
-pub async fn update_lib_info() {}
-pub async fn delete_lib_info() {}

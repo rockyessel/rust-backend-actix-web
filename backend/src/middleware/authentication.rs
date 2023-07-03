@@ -1,13 +1,18 @@
-use actix_web::dev::Payload;
-use actix_web::error::ErrorUnauthorized;
-use actix_web::{FromRequest, HttpRequest, HttpMessage};
+use actix_service::forward_ready;
+use actix_web::{
+    dev::{Service, ServiceRequest, ServiceResponse, Transform, Payload},
+    error::ErrorUnauthorized,
+    FromRequest, HttpRequest, HttpMessage, Error,
+};
 use futures::future::{ready, Ready};
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Serialize, Deserialize};
+// use std::future::LocalBoxFuture;
+use futures::future::LocalBoxFuture;
 
 use crate::utils::helpers::JWTUserClaims;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct ErrorResponse {
     status: String,
     message: String,
@@ -28,14 +33,45 @@ impl std::fmt::Display for ErrorResponse {
     }
 }
 
-pub struct JwtMiddleware {
-    pub username: String,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Username(pub String);
+
+pub struct JwtMiddleware;
+
+impl<S, B> Transform<S, ServiceRequest> for JwtMiddleware
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = ServiceResponse<B>;
+    type Error = Error;
+    type InitError = ();
+    type Transform = JwtMiddlewareMiddleware<S>;
+    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+
+    fn new_transform(&self, service: S) -> Self::Future {
+        ready(Ok(JwtMiddlewareMiddleware { service }))
+    }
 }
 
-impl FromRequest for JwtMiddleware {
-    type Error = actix_web::Error;
-    type Future = Ready<Result<Self, Self::Error>>;
-    fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+pub struct JwtMiddlewareMiddleware<S> {
+    service: S,
+}
+
+impl<S, B> Service<ServiceRequest> for JwtMiddlewareMiddleware<S>
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = ServiceResponse<B>;
+    type Error = Error;
+    type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
+
+    forward_ready!(service);
+
+    fn call(&self, req: ServiceRequest) -> Self::Future {
         let token = req
             .headers()
             .get("Authorization")
@@ -49,7 +85,6 @@ impl FromRequest for JwtMiddleware {
             });
 
         if let Some(token) = token {
-            // let data = req.app_data::<AppState>().expect("Failed to get app state");
             let secret = DecodingKey::from_secret("your-secret-key".as_ref());
             let validation = Validation::default();
 
@@ -57,15 +92,21 @@ impl FromRequest for JwtMiddleware {
                 Ok(token_data) => {
                     let username = token_data.claims.username.to_string();
                     req.extensions_mut().insert(Username(username.clone()));
-                    ready(Ok(JwtMiddleware { username }))
+                    let fut = self.service.call(req);
+
+                    Box::pin(async move {
+                        let res = fut.await?;
+                        Ok(res)
+                    })
                 }
                 Err(_) => {
                     let error_response = ErrorResponse {
                         status: "error".to_string(),
                         message: "Invalid token".to_string(),
                     };
-                   ready(Err(ErrorUnauthorized::<ErrorResponse>(error_response.into())))
-
+                    Box::pin(async move {
+                        Err(ErrorUnauthorized::<ErrorResponse>(error_response.into()))
+                    })
                 }
             }
         } else {
@@ -73,17 +114,18 @@ impl FromRequest for JwtMiddleware {
                 status: "error".to_string(),
                 message: "You are not logged in, please provide a token".to_string(),
             };
-            ready(Err(ErrorUnauthorized::<ErrorResponse>(error_response.into())))
-
+            Box::pin(async move {
+                Err(ErrorUnauthorized::<ErrorResponse>(error_response.into()))
+            })
         }
     }
+}
 
-    fn extract(req: &HttpRequest) -> Self::Future {
-        Self::from_request(req, &mut Payload::None)
+impl FromRequest for JwtMiddleware {
+    type Error = Error;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(_req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+        ready(Ok(JwtMiddleware))
     }
 }
-#[derive(Debug, Serialize, Deserialize)]
-
-
-
-pub struct Username(pub String);

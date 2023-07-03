@@ -1,9 +1,8 @@
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use actix_web::middleware::Logger;
-use fordev::routes::user::configure_routes;
+use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use fordev::routes::package::package_routes;
+use fordev::routes::user::user_routes;
 use fordev::services::db::connect_to_mongodb;
-
-
 
 // Define a handler for the root ("/") route
 #[get("/")]
@@ -23,7 +22,6 @@ async fn hello() -> impl Responder {
     )
 }
 
-
 // The main entry point of the application
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -38,9 +36,10 @@ async fn main() -> std::io::Result<()> {
     let server = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(db_connection.clone())) // Share the MongoDB client across routes
-             .wrap(Logger::default())
+            .wrap(Logger::default())
             .service(hello)
-            .configure(configure_routes)
+            .configure(user_routes)
+            .configure(package_routes)
     })
     .bind((server_address, PORT))?; // Bind the server to the specified address and port
 
