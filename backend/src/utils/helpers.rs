@@ -14,7 +14,8 @@ pub struct JWTUserClaims {
 
 // https://pypi.org/project/json2json/
 async fn get_html() -> Result<String, reqwest::Error> {
-    let response = reqwest::get("http://localhost:3000/get-html?url=https://yarnpkg.com/package/aws-amplify").await?;
+    let response =
+        reqwest::get("http://localhost:3000/get-html?url=https://central.sonatype.com/artifact/com.parse.bolts/bolts-tasks/1.4.0/overview").await?;
     let html_content = response.text().await?;
     Ok(html_content)
 }
@@ -38,7 +39,7 @@ fn scrape_h2_value(content: &str) -> String {
 
     println!("{:?}", &document);
 
-    let selector = Selector::parse("h1#aws-amplify-package---aws-amplify").unwrap();
+    let selector = Selector::parse("h2.nx-h2").unwrap();
 
     let h1 = document.select(&selector).next();
 

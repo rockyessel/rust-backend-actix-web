@@ -12,7 +12,8 @@ app.get('/get-html', async (req, res) => {
   });
   const page = await browser.newPage();
   await page.goto(url);
-  await page.waitForSelector('html', { timeout: 1000 });
+
+  await page.waitForSelector('html', { timeout: 50000 });
 
   const htmlContent = await page.evaluate(() => {
     return document.documentElement.outerHTML;
@@ -26,3 +27,9 @@ app.get('/get-html', async (req, res) => {
 app.listen(3000, () => {
   console.log('Node.js server running on port 3000');
 });
+
+
+//version
+//descriptions
+//code
+//metadata: license, size, homepage, owner, language, github star, total downloads
