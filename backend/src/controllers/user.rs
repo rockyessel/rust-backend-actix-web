@@ -1,5 +1,5 @@
-use crate::{models::user::User, utils::helpers::gen_jwt_tok};
 use crate::utils::helpers::hashed_or_verity_pass;
+use crate::{models::user::User, utils::helpers::gen_jwt_tok};
 use actix_web::{web, HttpResponse, Responder};
 use futures::stream::StreamExt;
 use mongodb::{
@@ -16,7 +16,10 @@ struct ID {
     oid: ObjectId,
 }
 
-pub async fn create_user(web::Form(form): web::Form<User>, mongo_client: web::Data<Client>) -> impl Responder {
+pub async fn create_user(
+    web::Form(form): web::Form<User>,
+    mongo_client: web::Data<Client>,
+) -> impl Responder {
     // Access the "rustBackendApp" database
     let db = mongo_client.database("rustBackendApp");
     // Access the "users" collection within the database
@@ -87,6 +90,8 @@ pub async fn create_user(web::Form(form): web::Form<User>, mongo_client: web::Da
     })
     .to_string();
 
+    println!("User data: {:#?}", user_json);
+
     // Return an HTTP response with the message
     HttpResponse::Ok()
         .content_type("application/json")
@@ -116,7 +121,10 @@ pub async fn get_all_users(mongo_client: web::Data<Client>) -> impl Responder {
     HttpResponse::InternalServerError().finish()
 }
 
-pub async fn user_login(web::Form(form): web::Form<User>, mongo_client: web::Data<Client>) -> impl Responder {
+pub async fn user_login(
+    web::Form(form): web::Form<User>,
+    mongo_client: web::Data<Client>,
+) -> impl Responder {
     // Access the "rustBackendApp" database
     let db = mongo_client.database("rustBackendApp");
     // Access the "users" collection within the database
@@ -135,17 +143,17 @@ pub async fn user_login(web::Form(form): web::Form<User>, mongo_client: web::Dat
         "verify_hash",
         Some(&user_doc.password.as_ref()),
     );
- let tok = gen_jwt_tok(&user_doc.username).unwrap();
+    let tok = gen_jwt_tok(&user_doc.username).unwrap();
     if verify_pass == "verified" {
-           let user_json = json!({
-        "_id": user_doc._id,
-        "name": user_doc.name,
-        "username": user_doc.username,
-        "email": user_doc.email,
-        "bio": user_doc.bio,
-        "token": tok,
-    })
-    .to_string();
+        let user_json = json!({
+            "_id": user_doc._id,
+            "name": user_doc.name,
+            "username": user_doc.username,
+            "email": user_doc.email,
+            "bio": user_doc.bio,
+            "token": tok,
+        })
+        .to_string();
 
         HttpResponse::Ok()
             .content_type("application/json")
@@ -156,4 +164,36 @@ pub async fn user_login(web::Form(form): web::Form<User>, mongo_client: web::Dat
             .content_type("application/json")
             .body(user_json)
     }
+}
+
+pub async fn update_user(
+    web::Form(form): web::Form<User>,
+    username: web::Path<String>,
+    mongo_client: web::Data<Client>,
+) -> impl Responder {
+    // Access the "rustBackendApp" database
+    let db = mongo_client.database("rustBackendApp");
+    // Access the "users" collection within the database
+    let collection: Collection<User> = db.collection::<User>("users");
+
+    let username = username.into_inner();
+
+    print!("{:?}", &username);
+
+    let value = serde_json::json!({
+        "code": 200,
+        "success": true,
+        "payload": {
+            "features": [
+                "serde",
+                "json"
+            ],
+            "homepage": null,
+            "user": &username,
+        }
+    });
+
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .json(value)
 }
